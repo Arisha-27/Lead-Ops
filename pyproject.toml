@@ -1,0 +1,19 @@
+[project]
+name = 'leadops-sim'
+version = '0.1.0'
+description = 'Elite Sales Operations Environment for OpenEnv'
+readme = 'README.md'
+requires-python = '>=3.11'
+dependencies = [
+    'fastapi',
+    'uvicorn',
+    'sqlalchemy',
+    'tavily-python',
+    'openai',
+    'httpx',
+    'python-dotenv',
+]
+
+[build-system]
+requires = ['setuptools>=61.0']
+build-backend = 'setuptools.build_meta'
