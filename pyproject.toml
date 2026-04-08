@@ -12,11 +12,11 @@ dependencies = [
     'openai',
     'httpx',
     'python-dotenv',
-    'openenv>=0.2.0',
+    'openenv>=0.1.0',
 ]
 
 [project.scripts]
-openenv-server = "server.app:main"
+server = "server.app:main"
 
 [build-system]
 requires = ['setuptools>=61.0']

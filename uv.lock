@@ -375,7 +375,7 @@ requires-dist = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "openai" },
-    { name = "openenv", specifier = ">=0.1.13" },
+    { name = "openenv", specifier = ">=0.1.0" },
     { name = "python-dotenv" },
     { name = "sqlalchemy" },
     { name = "tavily-python" },
