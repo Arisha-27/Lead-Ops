@@ -1,0 +1,28 @@
+# VCS
+.git/
+.gitignore
+
+# Python cache/build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# Local environments
+.venv/
+venv/
+env/
+
+# Editors/OS
+.vscode/
+.idea/
+.DS_Store
+
+# Local secrets and logs
+.env
+*.log
+
+# Local runtime artifacts
+/tmp/

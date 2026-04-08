@@ -33,6 +33,7 @@ class ToolName(str, Enum):
     ROUTE_TO_AE = "route_to_ae"
     DISQUALIFY = "disqualify"
     UPDATE_LEAD = "update_lead"
+    READ_LOGS = "read_logs"
 
 
 class ActionType(str, Enum):
@@ -514,6 +515,17 @@ def get_default_available_actions(task_id: TaskID) -> list[AvailableAction]:
                 "required": ["reason"],
             },
         ),
+        ToolName.READ_LOGS: AvailableAction(
+            tool_name=ToolName.READ_LOGS,
+            action_type=ActionType.SEARCH,
+            description="Read chronological interaction logs (emails, calls, notes) for the current lead. Use to discover MEDDIC signals.",
+            parameter_schema={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Optional filter keyword for logs"},
+                },
+            },
+        ),
     }
 
     task_tool_map: dict[TaskID, list[ToolName]] = {
@@ -526,12 +538,17 @@ def get_default_available_actions(task_id: TaskID) -> list[AvailableAction]:
         ],
         TaskID.MEDDIC_QUALIFY: [
             ToolName.CRM_LOOKUP,
+            ToolName.READ_LOGS,
             ToolName.TAVILY_SEARCH,
             ToolName.SCORE_MEDDIC,
             ToolName.DISQUALIFY,
         ],
         TaskID.STRATEGIC_ROUTE: [
             ToolName.CRM_LOOKUP,
+            ToolName.READ_LOGS,
+            ToolName.TAVILY_SEARCH,
+            ToolName.UPDATE_LEAD,
+            ToolName.SCORE_MEDDIC,
             ToolName.ROUTE_TO_AE,
             ToolName.DISQUALIFY,
         ],

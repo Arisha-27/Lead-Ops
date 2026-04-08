@@ -12,24 +12,37 @@
 
 Lead-Ops models the end-to-end lifecycle of a B2B sales lead as a reinforcement learning environment. An autonomous agent observes raw CRM data, takes actions to enrich and qualify leads, and receives reward signals based on data quality, MEDDIC coverage, and routing accuracy.
 
-The environment exposes **three tasks** that mirror the real-world Sales Operations pipeline:
+The environment uses a **real SQLite database** (no mock data), **Tavily API** for live web search, and **programmatic grading** (no LLM-as-a-judge).
 
-| Task ID | Description | Max Steps |
-|---|---|---|
-| `enrich_lead` | Enrich a raw CRM lead with firmographic, technographic, and contact intelligence | 10 |
-| `meddic_qualify` | Score a lead against the 6 MEDDIC pillars | 12 |
-| `strategic_route` | Route a qualified lead to the optimal AE or team | 5 |
+### Environment Motivation
+
+Sales Operations leaders face three critical challenges:
+1. **Manual Lead Enrichment** — SDRs spend 30–40% of their time researching leads instead of selling
+2. **Inconsistent MEDDIC Qualification** — Scoring varies wildly by rep experience and judgment
+3. **Suboptimal Routing** — Round-robin assignment ignores deal fit, territory expertise, and win rates
+
+Lead-Ops provides a controlled simulation where AI agents can learn to automate these tasks with measurable, deterministic performance metrics.
+
+---
+
+## 🎯 Tasks
+
+| Task ID | Difficulty | Description | Max Steps |
+|---|---|---|---|
+| `enrich_lead` | Easy | Enrich a raw CRM lead with firmographic and contact intelligence | 10 |
+| `meddic_qualify` | Medium | Score a lead against 6 MEDDIC pillars using interaction logs | 12 |
+| `strategic_route` | Hard | Enrich + Qualify + Route to the optimal Account Executive | 15 |
 
 ---
 
 ## 📐 Observation Space
 
-The agent observes a `LeadObservation` object representing the current state of a CRM lead:
+The agent observes a `LeadObservation` object representing the current CRM lead state:
 
 | Field | Type | Description |
 |---|---|---|
 | `lead_id` | `str` | Unique lead identifier |
-| `company_name` | `str` | Company name |
+| `company_name` | `str` | Company name (may contain typos) |
 | `industry` | `str?` | Industry vertical |
 | `annual_revenue` | `float?` | Annual revenue (USD) |
 | `employee_count` | `int?` | Number of employees |
@@ -41,45 +54,74 @@ The agent observes a `LeadObservation` object representing the current state of 
 | `tech_stack` | `list[str]` | Known technologies used |
 | `lead_source` | `LeadSource?` | Acquisition channel |
 | `meddic_scores` | `MEDDICScores?` | MEDDIC qualification scores |
-| `enrichment_data` | `dict?` | Raw enrichment payload |
 | `routing_result` | `RoutingResult?` | Routing assignment |
+| `available_actions` | `list[AvailableAction]` | Actions the agent can take (prevents hallucinations) |
 
 ---
 
 ## 🎯 Action Space
 
-Actions follow a **Chain-of-Thought (CoT)** format — the agent must articulate its reasoning before invoking a tool:
+Actions are a **discriminated union** (Search vs. Update) with mandatory **Chain-of-Thought** reasoning:
 
+### Search Actions (read-only)
 ```json
 {
-  "thought": "The lead is missing firmographic data. I should search for company revenue and employee count to improve enrichment coverage.",
+  "action_type": "search",
+  "thought": "I need to find the company's revenue and employee count.",
   "tool_name": "tavily_search",
-  "parameters": {"query": "Acme Corp annual revenue employees"},
+  "query": "Stripe annual revenue 2024",
+  "filters": {"max_results": 3},
   "confidence": 0.85
+}
+```
+
+### Update Actions (write to CRM)
+```json
+{
+  "action_type": "update",
+  "thought": "Based on search results, updating revenue to $14B.",
+  "tool_name": "update_lead",
+  "field_updates": {"annual_revenue": 14000000000, "industry": "FinTech"},
+  "reason": "Confirmed via Tavily search and public filings",
+  "confidence": 0.9
 }
 ```
 
 ### Available Tools
 
-| Tool | Description | Primary Task |
+| Tool | Type | Description |
 |---|---|---|
-| `tavily_search` | Web search for company intelligence | `enrich_lead` |
-| `crm_lookup` | Look up existing CRM records | `enrich_lead` |
-| `linkedin_enrich` | Enrich with LinkedIn profile data | `enrich_lead` |
-| `score_meddic` | Run MEDDIC scoring pipeline | `meddic_qualify` |
-| `route_to_ae` | Route lead to an Account Executive | `strategic_route` |
-| `disqualify` | Mark lead as disqualified | Any |
+| `tavily_search` | Search | Real-time web search via Tavily API |
+| `crm_lookup` | Search | Look up CRM records, accounts, and routing rules |
+| `linkedin_enrich` | Search | Search LinkedIn for contact data |
+| `read_logs` | Search | Read interaction logs (emails/calls) for MEDDIC signals |
+| `update_lead` | Update | Update CRM lead fields with enriched data |
+| `score_meddic` | Update | Set MEDDIC pillar scores (0.0–1.0) |
+| `route_to_ae` | Update | Route lead to an Account Executive |
+| `disqualify` | Update | Disqualify a lead from the pipeline |
 
 ---
 
 ## 🏆 Reward Function
 
-Rewards are scalar values in `[0.0, 1.0]` with a component breakdown:
+Rewards are scalar values in `[0.0, 1.0]` with component breakdowns:
 
-- **Data Completeness** — Fraction of CRM fields populated
-- **MEDDIC Coverage** — Composite score across 6 pillars
-- **Routing Accuracy** — Quality of AE-to-lead fit
-- **Efficiency** — Fewer steps = higher reward bonus
+### Task 1 — Enrichment (Easy)
+- **LinkedIn URL Match** (50%) — Fuzzy match against ground truth
+- **Job Title Match** (50%) — Fuzzy match against ground truth
+- **Step Penalty** (-0.02 per step)
+- **Destructive Penalty** (-0.50 for deleting data)
+
+### Task 2 — MEDDIC Qualification (Medium)
+- **Economic Buyer Accuracy** (60%) — Agent score vs. interaction log signals
+- **Identify Pain Accuracy** (40%) — Agent score vs. interaction log signals
+- **Step Penalty** (-0.02 per step)
+
+### Task 3 — Strategic Routing (Hard)
+- **Enrichment Accuracy** (30%) — Revenue within 10% of ground truth
+- **MEDDIC Completeness** (30%) — Fraction of 6 pillars scored
+- **Routing Accuracy** (40%) — Correct AE assignment
+- **Step Penalty** (-0.02 per step)
 
 ---
 
@@ -88,8 +130,8 @@ Rewards are scalar values in `[0.0, 1.0]` with a component breakdown:
 ### Prerequisites
 
 - Python 3.11+
-- A Hugging Face API token
-- A Tavily API key
+- A Tavily API key ([tavily.com](https://tavily.com))
+- An OpenAI-compatible LLM endpoint
 
 ### Setup
 
@@ -107,56 +149,51 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env with your real API keys
 
-# 5. Validate the setup
+# 5. Initialize and seed the database
+python database_init.py
+python scripts/dirty_seeder.py
+python scripts/interaction_generator.py
+
+# 6. Validate the setup
 python check_compliance.py
 ```
 
 ### Run the Server
 
 ```bash
-uvicorn server.app:app --reload --port 8000
+uvicorn server.app:app --host 0.0.0.0 --port 7860 --reload
 ```
 
----
+### Run Inference
 
-## 👤 User Persona
+```bash
+# Set your model config
+export API_BASE_URL=https://api.openai.com/v1
+export MODEL_NAME=gpt-4o
+export OPENAI_API_KEY=your-key
 
-### Primary Persona — Sales Operations Leader
+# Run against local server
+python inference.py
+```
 
-| Attribute | Detail |
-|---|---|
-| **Role** | VP / Director of Sales Operations |
-| **Company Stage** | Mid-market to Enterprise (200–5,000 employees) |
-| **Industry** | B2B SaaS, FinTech, Enterprise Software |
-| **CRM Stack** | Salesforce (primary), HubSpot (secondary) |
-| **Sales Methodology** | MEDDIC / MEDDPICC |
-| **Team Size** | 15–50 SDRs and AEs across 3+ regions |
+### Docker
 
-### Pain Points
+```bash
+# Build
+docker build -t leadops .
 
-1. **Manual Lead Enrichment** — SDRs spend 30–40% of their time researching leads instead of selling
-2. **Inconsistent Qualification** — MEDDIC scoring varies wildly by rep experience and judgment
-3. **Suboptimal Routing** — Round-robin assignment ignores deal fit, territory expertise, and historical win rates
-4. **Forecast Inaccuracy** — Pipeline is inflated with poorly qualified leads (≥40% slippage)
-5. **Data Decay** — CRM records go stale within 90 days; no automated re-enrichment
+# Run
+docker run -p 7860:7860 \
+  -e HF_TOKEN=your-token \
+  -e OPENAI_API_KEY=your-openai-key \
+  -e API_BASE_URL=https://api.openai.com/v1 \
+  -e MODEL_NAME=gpt-4o-mini \
+  -e TAVILY_API_KEY=your-key \
+  leadops
 
-### Success Metrics
-
-| KPI | Current | Target |
-|---|---|---|
-| Time-to-first-contact | 4.2 hours | < 1 hour |
-| Lead enrichment coverage | 35% | > 90% |
-| MEDDIC field completion | 22% | > 85% |
-| Qualified-to-Close rate | 12% | > 25% |
-| SDR admin time | 40% | < 15% |
-
-### Workflow Requirements
-
-- **Autonomous enrichment** — Agent must fill firmographic + technographic + contact data without human intervention
-- **Transparent reasoning** — All qualification decisions must include Chain-of-Thought rationale (audit trail)
-- **Human-in-the-loop** — Routing suggestions are presented to managers; auto-routing only after confidence > 0.85
-- **CRM sync** — All enrichment and scoring must map back to Salesforce custom fields
-- **Compliance** — No PII scraping beyond publicly available business data (LinkedIn, company websites, press releases)
+# Validate endpoints against local container
+./validate-submission.sh http://localhost:7860
+```
 
 ---
 
@@ -164,27 +201,48 @@ uvicorn server.app:app --reload --port 8000
 
 ```
 Lead-Ops/
-├── openenv.yaml           # OpenEnv manifest
-├── models.py              # Pydantic V2 data models
-├── config.py              # Environment config loader
-├── check_compliance.py    # Validation script
-├── requirements.txt       # Pinned dependencies
-├── README.md              # This file
-├── .env.example           # Environment variable template
-├── .env                   # Your secrets (gitignored)
-├── .gitignore             # Git ignore rules
-└── server/
-    └── app.py             # FastAPI entrypoint
+├── app.py                    # Root runtime wrapper (binds to PORT=7860)
+├── openenv.yaml              # OpenEnv manifest (port 7860)
+├── models.py                 # Pydantic V2 data models (Action union, Observation)
+├── config.py                 # Lazy-loaded environment config
+├── db_models.py              # SQLAlchemy ORM (leads, accounts, logs, cache)
+├── database_init.py          # Database initializer
+├── session_manager.py        # Per-episode session isolation (/tmp clones)
+├── environment.py            # LeadOpsEnv: reset(), step(), state()
+├── actions.py                # Tool implementations (Tavily, CRM, MEDDIC)
+├── grader.py                 # Programmatic graders (3 tasks)
+├── inference.py              # Baseline inference script ([START/STEP/END])
+├── validate-submission.sh    # Endpoint validator for local/HF URL
+├── Dockerfile                # HF Spaces container (python:3.11-slim)
+├── check_compliance.py       # OpenEnv compliance validator
+├── requirements.txt          # Pinned dependencies
+├── README.md                 # This file
+├── .env.example              # Environment variable template
+├── .gitignore                # Git ignore rules
+├── data/
+│   ├── solutions.json        # Ground truth for grading
+│   ├── territory_routing.json # Routing rules (segment/territory/AE)
+│   └── meddic_playbook.json  # MEDDIC framework reference
+├── scripts/
+│   ├── dirty_seeder.py       # Populates 50 dirty CRM leads
+│   └── interaction_generator.py # Generates MEDDIC-signal email threads
+├── server/
+│   └── app.py                # FastAPI entrypoint
+├── utils/
+│   └── score_report.py       # Human-readable score reports
+└── test_penalties.py         # Destructive action penalty tests
 ```
 
 ---
 
 ## 🗺️ Roadmap
 
-- [x] **Phase 1:** Environment Foundation — manifest, models, config
-- [ ] **Phase 2:** Agent Loop — step engine, tool implementations
-- [ ] **Phase 3:** Reward Shaping — composite scoring, feedback loops
-- [ ] **Phase 4:** Evaluation — benchmarks, leaderboard integration
+- [x] **Phase 1:** Blueprint — manifest, models, config, compliance
+- [x] **Phase 2:** Data Infrastructure — SQLite, seeder, interaction logs, sessions
+- [x] **Phase 3:** API Server — FastAPI, tools, environment loop
+- [x] **Phase 4:** Graders — programmatic scoring for all 3 tasks
+- [x] **Phase 5:** Inference & Deployment — inference.py, Dockerfile
+- [x] **Phase 6:** HF Space Hardening — health checks, wrapper entrypoint, validator script, Docker optimization
 
 ---
 

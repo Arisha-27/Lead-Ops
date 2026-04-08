@@ -10,6 +10,7 @@
     "correct_ae": "enterprise_west_01",
     "contact_name": "Patrick Collison",
     "contact_title": "CEO",
+    "contact_linkedin": "https://linkedin.com/in/patrickcollison",
     "tech_stack": ["Ruby", "Go", "AWS", "React"],
     "meddic_difficulty": "hard",
     "notes": "Payment infrastructure leader. HQ in San Francisco."
@@ -25,6 +26,7 @@
     "correct_ae": "enterprise_west_02",
     "contact_name": "Sridhar Ramaswamy",
     "contact_title": "CEO",
+    "contact_linkedin": "https://linkedin.com/in/sridharramaswamy",
     "tech_stack": ["Java", "Scala", "AWS", "Azure", "GCP"],
     "meddic_difficulty": "hard",
     "notes": "Cloud data platform. HQ in Bozeman, MT. Multi-cloud strategy."
@@ -40,6 +42,7 @@
     "correct_ae": "enterprise_east_01",
     "contact_name": "Olivier Pomel",
     "contact_title": "CEO",
+    "contact_linkedin": "https://linkedin.com/in/olivierpomel",
     "tech_stack": ["Python", "Go", "Kubernetes", "AWS"],
     "meddic_difficulty": "medium",
     "notes": "Monitoring/observability platform. HQ in New York."
@@ -55,6 +58,7 @@
     "correct_ae": "enterprise_west_01",
     "contact_name": "Matthew Prince",
     "contact_title": "CEO",
+    "contact_linkedin": "https://linkedin.com/in/matthewprince",
     "tech_stack": ["Rust", "Go", "Nginx", "Cloudflare Workers"],
     "meddic_difficulty": "medium",
     "notes": "Edge computing and security. HQ in San Francisco."
@@ -70,6 +74,7 @@
     "correct_ae": "enterprise_east_02",
     "contact_name": "Yamini Rangan",
     "contact_title": "CEO",
+    "contact_linkedin": "https://linkedin.com/in/yaminirangan",
     "tech_stack": ["Java", "React", "MySQL", "AWS"],
     "meddic_difficulty": "medium",
     "notes": "CRM and marketing platform. HQ in Cambridge, MA."
@@ -85,6 +90,7 @@
     "correct_ae": "enterprise_west_02",
     "contact_name": "Khozema Shipchandler",
     "contact_title": "CEO",
+    "contact_linkedin": "https://linkedin.com/in/khozemashipchandler",
     "tech_stack": ["Python", "Java", "AWS", "Kafka"],
     "meddic_difficulty": "hard",
     "notes": "Communications APIs. HQ in San Francisco."
@@ -100,6 +106,7 @@
     "correct_ae": "enterprise_east_01",
     "contact_name": "Dev Ittycheria",
     "contact_title": "CEO",
+    "contact_linkedin": "https://linkedin.com/in/devittycheria",
     "tech_stack": ["C++", "Go", "JavaScript", "MongoDB Atlas"],
     "meddic_difficulty": "medium",
     "notes": "NoSQL database. HQ in New York."
@@ -115,6 +122,7 @@
     "correct_ae": "enterprise_west_01",
     "contact_name": "Mike Cannon-Brookes",
     "contact_title": "Co-CEO",
+    "contact_linkedin": "https://linkedin.com/in/mikecannonbrookes",
     "tech_stack": ["Java", "React", "AWS", "Confluence", "Jira"],
     "meddic_difficulty": "hard",
     "notes": "Collaboration tools (Jira, Confluence). HQ in Sydney, US ops in San Francisco."
@@ -130,6 +138,7 @@
     "correct_ae": "enterprise_west_02",
     "contact_name": "Todd McKinnon",
     "contact_title": "CEO",
+    "contact_linkedin": "https://linkedin.com/in/toddmckinnon",
     "tech_stack": ["Java", "Node.js", "AWS", "React"],
     "meddic_difficulty": "medium",
     "notes": "Identity and access management. HQ in San Francisco."
@@ -145,6 +154,7 @@
     "correct_ae": "enterprise_east_02",
     "contact_name": "George Kurtz",
     "contact_title": "CEO",
+    "contact_linkedin": "https://linkedin.com/in/georgekurtz",
     "tech_stack": ["Go", "Python", "C++", "AWS", "Falcon"],
     "meddic_difficulty": "hard",
     "notes": "Endpoint security platform. HQ in Austin, TX."

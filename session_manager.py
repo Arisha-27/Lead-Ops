@@ -12,7 +12,7 @@ Usage::
     from session_manager import SessionManager
 
     sm = SessionManager()
-    session_id = sm.create_session()
+    session_id = sm.create_session(task_id="enrich_lead", target_lead_id=1)
     db_session = sm.get_db_session(session_id)
     # ... agent interacts with the database ...
     sm.destroy_session(session_id)
@@ -20,12 +20,11 @@ Usage::
 
 from __future__ import annotations
 
-import os
 import shutil
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -46,7 +45,7 @@ SESSION_TTL_SECONDS = 3600  # 1 hour
 
 @dataclass
 class SessionInfo:
-    """Metadata for an active session."""
+    """Metadata for an active session — fully typed, no monkey-patching."""
 
     session_id: str
     db_path: Path
@@ -54,6 +53,11 @@ class SessionInfo:
     last_accessed: datetime = field(default_factory=datetime.utcnow)
     step_count: int = 0
     is_active: bool = True
+
+    # ── Episode-specific state ────────────────────────────────────────────
+    target_lead_id: Optional[int] = None
+    task_id: Optional[str] = None
+    step_rewards_accum: float = 0.0
 
     @property
     def age_seconds(self) -> float:
@@ -77,6 +81,9 @@ class SessionInfo:
             "step_count": self.step_count,
             "is_active": self.is_active,
             "is_expired": self.is_expired,
+            "target_lead_id": self.target_lead_id,
+            "task_id": self.task_id,
+            "step_rewards_accum": self.step_rewards_accum,
         }
 
 
@@ -107,7 +114,7 @@ class SessionManager:
 
         # In-memory registry of active sessions
         self._sessions: dict[str, SessionInfo] = {}
-        self._engines: dict[str, any] = {}
+        self._engines: dict[str, object] = {}
 
         # Ensure session directory exists
         self.session_dir.mkdir(parents=True, exist_ok=True)
@@ -130,16 +137,24 @@ class SessionManager:
             self.destroy_session(sid)
         return len(expired)
 
-    def create_session(self) -> str:
+    def create_session(
+        self,
+        task_id: str | None = None,
+        target_lead_id: int | None = None,
+    ) -> str:
         """
         Clone master.db to a new session database.
 
+        Args:
+            task_id: The OpenEnv task identifier for this episode.
+            target_lead_id: The lead ID the agent should work on.
+
         Returns:
-            session_id: Unique session identifier
+            session_id: Unique session identifier.
 
         Raises:
-            FileNotFoundError: If master.db doesn't exist
-            RuntimeError: If max concurrent sessions exceeded
+            FileNotFoundError: If master.db doesn't exist.
+            RuntimeError: If max concurrent sessions exceeded.
         """
         self._validate_master_exists()
 
@@ -173,8 +188,14 @@ class SessionManager:
         engine = create_db_engine(f"sqlite:///{db_path}")
         self._engines[session_id] = engine
 
-        # Register session
-        info = SessionInfo(session_id=session_id, db_path=db_path)
+        # Register session with proper typed fields
+        info = SessionInfo(
+            session_id=session_id,
+            db_path=db_path,
+            task_id=task_id,
+            target_lead_id=target_lead_id,
+            step_rewards_accum=0.0,
+        )
         self._sessions[session_id] = info
 
         return session_id
@@ -258,7 +279,7 @@ class SessionManager:
         If session_id is None, creates a brand new session.
 
         Returns:
-            new_session_id: The ID of the fresh session
+            new_session_id: The ID of the fresh session.
         """
         if session_id is not None:
             self.destroy_session(session_id)

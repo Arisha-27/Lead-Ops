@@ -11,9 +11,9 @@ type: agent_environment
 runtime:
   language: python
   version: "3.11"
-  entrypoint: server/app.py
+  entrypoint: app.py
 
-port: 8000
+port: 7860
 
 # ---------------------------------------------------------------------------
 # Observation Space (shared across tasks)
@@ -79,6 +79,9 @@ observation_space:
       type: object
       nullable: true
       description: Routing assignment result
+    - name: available_actions
+      type: array
+      description: List of actions the agent is allowed to take in the current state
 
 # ---------------------------------------------------------------------------
 # Action Space
@@ -86,6 +89,12 @@ observation_space:
 action_space:
   type: object
   fields:
+    - name: action_type
+      type: string
+      enum:
+        - search
+        - update
+      description: Discriminator — whether this action reads or writes data
     - name: thought
       type: string
       description: Chain-of-thought reasoning before acting
@@ -95,13 +104,28 @@ action_space:
         - tavily_search
         - crm_lookup
         - linkedin_enrich
+        - read_logs
+        - update_lead
         - score_meddic
         - route_to_ae
         - disqualify
       description: The tool to invoke
-    - name: parameters
+    - name: query
+      type: string
+      nullable: true
+      description: Search query (for search actions)
+    - name: filters
       type: object
-      description: Tool-specific parameters
+      nullable: true
+      description: Optional search filters (for search actions)
+    - name: field_updates
+      type: object
+      nullable: true
+      description: Key-value pairs of fields to update (for update actions)
+    - name: reason
+      type: string
+      nullable: true
+      description: Justification for the update (for update actions)
     - name: confidence
       type: float
       description: Agent confidence in this action (0.0–1.0)
@@ -131,4 +155,4 @@ tasks:
       or sales team based on deal fit, territory, and
       historical win-rate patterns.
     reward_range: [0.0, 1.0]
-    max_steps: 5
+    max_steps: 15
